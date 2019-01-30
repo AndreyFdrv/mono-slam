@@ -312,17 +312,38 @@ void VSlamFilter::removeFeature(int index) {
 void VSlamFilter::predict(float v_x, float w_z) {
 	Ft = dg_x_dx(mu.segment<13>(0), dT);
     const int n = Sigma.cols();
-    
     MatrixXf Ft_complete = MatrixXf::Identity(n,n);
     Ft_complete.block<13,13>(0,0) = Ft;
     MatrixXf Q;
-    Q = Ft.middleCols<6>(7)*(Vmax/dT/dT)*Ft.middleCols<6>(7).transpose();
-
+        MatrixXf FtMiddleCols = Ft.middleCols<6>(7);
+	MatrixXf VmaxDTDivison = Vmax/dT/dT;
+        MatrixXf FtVmaxMultiplication(FtMiddleCols.rows(), VmaxDTDivison.cols());
+        for(int i=0; i<FtVmaxMultiplication.rows(); i++)
+        {
+	    for(int j=0; j<FtVmaxMultiplication.cols(); j++)
+	    {
+                float sum=0;
+                for(int k=0; k<FtMiddleCols.cols(); k++)
+                    sum+=FtMiddleCols(i, k)*VmaxDTDivison(k, j);
+                FtVmaxMultiplication(i, j)=sum;
+            }
+        }
+        MatrixXf FtTransposed = Ft.middleCols<6>(7).transpose();
+        Q.resize(FtVmaxMultiplication.rows(), FtTransposed.cols());
+        for(int i=0; i<Q.rows(); i++)
+        {
+	    for(int j=0; j<Q.cols(); j++)
+	    {
+                float sum=0;
+                for(int k=0; k<FtVmaxMultiplication.cols(); k++)
+                    sum+=FtVmaxMultiplication(i, k)*FtTransposed(k, j);
+                Q(i, j)=sum;
+            }
+       }
 
     MatrixXf Qtot = MatrixXf::Zero(n,n);
     Qtot.block<13,13>(0,0) = Q;
     Sigma = (Ft_complete*Sigma*Ft_complete.transpose() + Qtot).eval();
-
     mu.segment<13>(0) = fv(mu.segment<13>(0), dT);
     Vector3f r = mu.segment<3>(0);
     Vector4f q = mu.segment<4>(3);
@@ -349,7 +370,7 @@ void VSlamFilter::predict(float v_x, float w_z) {
     MatrixXf Hit;
     
     int featurer_counter = 0;
-    
+std::cout<<"before loop\n";
     for (int i = 0; i < patches.size(); i++) {
 		int pos = patches[i].position_in_state;
         if (!patches[i].isXYZ()) {                                // Feature in Inverse Depth Form

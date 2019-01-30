@@ -139,31 +139,30 @@ public:
 
 		first = 0;
 		slam.captureNewFrame(cv_ptr->image);
-
     	slam.findNewFeatures();
-std::cout<<"slam.findNewFeatures() end\n";
 		frame = slam.returnImageDrawed();
 	} else {
 		slam.captureNewFrame(cv_ptr->image, msg->header.stamp.toSec());
 
 
-
 		slam.predict();
+std::cout<<"slam.predict\n";
 		slam.update();
-		
+std::cout<<"slam.update\n";
 		poses.poses.push_back(slam.getCameraPose());
 		camera_poses_pub.publish(slam.getCameraPath());
-
+std::cout<<"camera_poses_pub.publish(slam.getCameraPath())\n";
 		geometry_msgs::Pose camPose = slam.getCameraPose();
-
+std::cout<<"slam.getCameraPose()\n";
 		camera_pose_pub.publish(camPose);
-
+std::cout<<"camera_pose_pub.publish(camPose)\n";
 		features_pub.publish(slam.getFeatures());
 		camera_pub.publish(slam.ActualCameraRepr());
-		
+std::cout<<"camera_pose_pub.publish(slam.ActualCameraRepr())\n";		
 
 		odometry_pub.publish(slam.getVisualOdometry(msg->header.stamp));
 		frame = slam.returnImageDrawed();
+std::cout<<"slam.returnImageDrawed()\n";
 	}
 std::cout<<"if-else end\n";	
 		
