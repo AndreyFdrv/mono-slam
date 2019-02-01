@@ -370,9 +370,8 @@ void VSlamFilter::predict(float v_x, float w_z) {
     MatrixXf Hit;
     
     int featurer_counter = 0;
-std::cout<<"before loop\n";
     for (int i = 0; i < patches.size(); i++) {
-		int pos = patches[i].position_in_state;
+	int pos = patches[i].position_in_state;
         if (!patches[i].isXYZ()) {                                // Feature in Inverse Depth Form
             Hit = MatrixXf::Zero(2, mu.rows());
             VectorXf f = mu.segment<6>(pos);
@@ -400,8 +399,7 @@ std::cout<<"before loop\n";
             Hit.middleCols<4>(3) = J_h_hC*d_h_q;
             Hit.middleCols<6>(pos) = J_h_hC*RotCW*J_hW_f;
             patches[i].h = hi_out;
-			patches[i].H = Hit;
-
+	    patches[i].H = Hit;
 
 			// Blurring
 			hi_out_blurred = cam.projectAndDistort(RotCW_blurring*inverse2XYZ(f,r_blurring, J_hW_f), J_h_hC);
@@ -459,7 +457,6 @@ std::cout<<"before loop\n";
 
         }
     }
-
     VectorXf temp_h_out;
     MatrixXf temp_Ht;
 
@@ -477,7 +474,30 @@ std::cout<<"before loop\n";
     
 
     if (h_out.rows() > 0) {
-        St = (Ht*Sigma*Ht.transpose() + sigma_pixel_2*MatrixXf::Identity(Ht.rows(), Ht.rows())).eval();
+        MatrixXf HtSigmaMultiplication(Ht.rows(), Sigma.cols());
+        for(int i=0; i<HtSigmaMultiplication.rows(); i++)
+        {
+	    for(int j=0; j<HtSigmaMultiplication.cols(); j++)
+	    {
+                float sum=0;
+                for(int k=0; k<Ht.cols(); k++)
+                    sum+=Ht(i, k)*Sigma(k, j);
+                HtSigmaMultiplication(i, j)=sum;
+            }
+        }
+        MatrixXf HtTransposed = Ht.transpose();
+        St.resize(HtSigmaMultiplication.rows(), HtTransposed.cols());
+        for(int i=0; i<St.rows(); i++)
+        {
+	    for(int j=0; j<St.cols(); j++)
+	    {
+                float sum=0;
+                for(int k=0; k<HtSigmaMultiplication.cols(); k++)
+                    sum+=HtSigmaMultiplication(i, k)*HtTransposed(k, j);
+                St(i, j)=sum;
+            }
+        }
+        St = (St + sigma_pixel_2*MatrixXf::Identity(Ht.rows(), Ht.rows())).eval(); 
         this->drawPrediction();
     }
 }
