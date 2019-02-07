@@ -17,6 +17,8 @@
 #include <eigen3/Eigen/Cholesky>
 
 #define STATE_DIM 14
+#define EIGEN_DONT_VECTORIZE
+#define EIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT
 
 /**
  * Prototipes of the used funcitons
@@ -239,26 +241,26 @@ int VSlamFilter::addFeature(cv::Point2f pf) {
         S(nOld + 2, nOld + 2) =  config.sigma_rho_0;
 
         MatrixXf JsSMultiplication(Js.rows(), S.cols());
-        for(int i=0; i<JsSMultiplication.rows(); i++)
+        for(int ii=0; ii<JsSMultiplication.rows(); ii++)
         {
 	    for(int j=0; j<JsSMultiplication.cols(); j++)
 	    {
                 float sum=0;
                 for(int k=0; k<Js.cols(); k++)
-                    sum+=Js(i, k)*S(k, j);
-                JsSMultiplication(i, j)=sum;
+                    sum+=Js(ii, k)*S(k, j);
+                JsSMultiplication(ii, j)=sum;
             }
         }
         MatrixXf JsTransposed = Js.transpose();
         Sigma.resize(JsSMultiplication.rows(), JsTransposed.cols());
-        for(int i=0; i<Sigma.rows(); i++)
+        for(int ii=0; ii<Sigma.rows(); ii++)
         {
 	    for(int j=0; j<Sigma.cols(); j++)
 	    {
                 float sum=0;
                 for(int k=0; k<JsSMultiplication.cols(); k++)
-                    sum+=JsSMultiplication(i, k)*JsTransposed(k, j);
-                Sigma(i, j)=sum;
+                    sum+=JsSMultiplication(ii, k)*JsTransposed(k, j);
+                Sigma(ii, j)=sum;
             }
        }
        return 1;
@@ -318,26 +320,26 @@ void VSlamFilter::predict(float v_x, float w_z) {
         MatrixXf FtMiddleCols = Ft.middleCols<6>(7);
 	MatrixXf VmaxDTDivison = Vmax/dT/dT;
         MatrixXf FtVmaxMultiplication(FtMiddleCols.rows(), VmaxDTDivison.cols());
-        for(int i=0; i<FtVmaxMultiplication.rows(); i++)
+        for(int ii=0; ii<FtVmaxMultiplication.rows(); ii++)
         {
 	    for(int j=0; j<FtVmaxMultiplication.cols(); j++)
 	    {
                 float sum=0;
                 for(int k=0; k<FtMiddleCols.cols(); k++)
-                    sum+=FtMiddleCols(i, k)*VmaxDTDivison(k, j);
-                FtVmaxMultiplication(i, j)=sum;
+                    sum+=FtMiddleCols(ii, k)*VmaxDTDivison(k, j);
+                FtVmaxMultiplication(ii, j)=sum;
             }
         }
         MatrixXf FtTransposed = Ft.middleCols<6>(7).transpose();
         Q.resize(FtVmaxMultiplication.rows(), FtTransposed.cols());
-        for(int i=0; i<Q.rows(); i++)
+        for(int ii=0; ii<Q.rows(); ii++)
         {
 	    for(int j=0; j<Q.cols(); j++)
 	    {
                 float sum=0;
                 for(int k=0; k<FtVmaxMultiplication.cols(); k++)
-                    sum+=FtVmaxMultiplication(i, k)*FtTransposed(k, j);
-                Q(i, j)=sum;
+                    sum+=FtVmaxMultiplication(ii, k)*FtTransposed(k, j);
+                Q(ii, j)=sum;
             }
        }
 
@@ -475,26 +477,26 @@ void VSlamFilter::predict(float v_x, float w_z) {
 
     if (h_out.rows() > 0) {
         MatrixXf HtSigmaMultiplication(Ht.rows(), Sigma.cols());
-        for(int i=0; i<HtSigmaMultiplication.rows(); i++)
+        for(int ii=0; ii<HtSigmaMultiplication.rows(); ii++)
         {
 	    for(int j=0; j<HtSigmaMultiplication.cols(); j++)
 	    {
                 float sum=0;
                 for(int k=0; k<Ht.cols(); k++)
-                    sum+=Ht(i, k)*Sigma(k, j);
-                HtSigmaMultiplication(i, j)=sum;
+                    sum+=Ht(ii, k)*Sigma(k, j);
+                HtSigmaMultiplication(ii, j)=sum;
             }
         }
         MatrixXf HtTransposed = Ht.transpose();
         St.resize(HtSigmaMultiplication.rows(), HtTransposed.cols());
-        for(int i=0; i<St.rows(); i++)
+        for(int ii=0; ii<St.rows(); ii++)
         {
 	    for(int j=0; j<St.cols(); j++)
 	    {
                 float sum=0;
                 for(int k=0; k<HtSigmaMultiplication.cols(); k++)
-                    sum+=HtSigmaMultiplication(i, k)*HtTransposed(k, j);
-                St(i, j)=sum;
+                    sum+=HtSigmaMultiplication(ii, k)*HtTransposed(k, j);
+                St(ii, j)=sum;
             }
         }
         St = (St + sigma_pixel_2*MatrixXf::Identity(Ht.rows(), Ht.rows())).eval(); 
@@ -665,8 +667,88 @@ void VSlamFilter::findNewFeatures(int num) {
 
 }
 
-void VSlamFilter::update(float v_x, float w_z) {
+        MatrixXf matrixInvert(MatrixXf matrix)
+        {
+            int N = matrix.rows();
+            int* row = new int[N];
+            int* col = new int[N];
+            float* temp = new float[N];
+            int hold, I_pivot, J_pivot;
+            float pivot, abs_pivot;
+            for (int i = 0; i < N; i++)
+            {
+                row[i] = i;
+                col[i] = i;
+            }
+            MatrixXf result(N, N);
+            for (int i = 0; i < N; i++)
+            {
+                for (int j = 0; j < N; j++)
+                    result(i, j)=matrix(i, j);
+            }
+            for (int k = 0; k < N; k++)
+            {
+                pivot = result(row[k], col[k]);
+                I_pivot = k;
+                J_pivot = k;
+                for (int i = k; i < N; i++)
+                {
+                    for (int j = k; j < N; j++)
+                    {
+                        abs_pivot = pivot<0?-pivot:pivot;
+                        if ((result(row[i], col[j])<0?-result(row[i], col[j]):result(row[i], col[j])) > abs_pivot)
+                        {
+                            I_pivot = i;
+                            J_pivot = j;
+                            pivot = result(row[i], col[j]);
+                        }
+                    }
+                }
+                hold = row[k];
+                row[k] = row[I_pivot];
+                row[I_pivot] = hold;
+                hold = col[k];
+                col[k] = col[J_pivot];
+                col[J_pivot] = hold;
+                result(row[k], col[k]) = 1.0 / pivot;
+                for (int j = 0; j < N; j++)
+                {
+                    if (j != k)
+                        result(row[k], col[j]) = result(row[k], col[j]) * result(row[k], col[k]);
+                }
+                for (int i = 0; i < N; i++)
+                {
+                    if (k != i)
+                    {
+                        for (int j = 0; j < N; j++)
+                        {
+                            if (k != j)
+                            {
+                                result(row[i], col[j]) = result(row[i], col[j]) - result(row[i], col[k]) * result(row[k], col[j]);
+                            }
+                        }
+                        result(row[i], col[k]) = -result(row[i], col[k]) * result(row[k], col[k]);
+                    }
+                }
+            }
+            for (int j = 0; j < N; j++)
+            {
+                for (int i = 0; i < N; i++)
+                    temp[col[i]] = result(row[i], j);
+                for (int i = 0; i < N; i++)
+                    result(i, j) = temp[i];
+            }
+            for (int i = 0; i < N; i++)
+            {
+                for (int j = 0; j < N; j++)
+                    temp[row[j]] = result(i, col[j]);
+                for (int j = 0; j < N; j++)
+                    result(i, j) = temp[j];
+            }
+            return result;
+        }
 
+void VSlamFilter::update(float v_x, float w_z) {
     cv::Point2f locF;
     int matchedFeatures = 0;
     int searchedFeatures = 0;
@@ -696,16 +778,37 @@ void VSlamFilter::update(float v_x, float w_z) {
 		if (patches[i].patchIsInInnovation())
 			ransacindex.push_back(i);
 	}
-
-
 	for (int i = 0; i < nhyp && ransacindex.size() > 0; i++) {
 		int actual_num_zli = 0;
 
 		int posRansac = rand()%ransacindex.size();
 		int selectPatch = ransacindex[posRansac];
 		ransacindex.erase(ransacindex.begin() + posRansac);
-
-		MatrixXf S_i = patches[selectPatch].H*Sigma*patches[selectPatch].H.transpose() + sigma_pixel_2*MatrixXf::Identity(patches[selectPatch].H.rows(), patches[selectPatch].H.rows());
+		MatrixXf H = patches[selectPatch].H;
+		MatrixXf HSigmaMultiplication(H.rows(), Sigma.cols());
+		for(int ii=0; ii<HSigmaMultiplication.rows(); ii++)
+		{
+			for(int j=0; j<HSigmaMultiplication.cols(); j++)
+			{
+				float sum=0;
+				for(int k=0; k<H.cols(); k++)
+					sum+=H(ii, k)*Sigma(k, j);
+				HSigmaMultiplication(ii, j)=sum;
+			}
+		}
+		MatrixXf HTransposed = patches[selectPatch].H.transpose();
+		MatrixXf S_i(HSigmaMultiplication.rows(), HTransposed.cols());
+        	for(int ii=0; ii<S_i.rows(); ii++)
+        	{
+	    		for(int j=0; j<S_i.cols(); j++)
+	    		{
+                		float sum=0;
+                		for(int k=0; k<HSigmaMultiplication.cols(); k++)
+                    			sum+=HSigmaMultiplication(ii, k)*HTransposed(k, j);
+                		S_i(ii, j)=sum;
+            		}
+        	}
+		S_i += sigma_pixel_2*MatrixXf::Identity(patches[selectPatch].H.rows(), patches[selectPatch].H.rows());
         MatrixXf K_i = Sigma*patches[selectPatch].H.transpose()*S_i.inverse();
 		VectorXf mu_i = mu + K_i*(patches[selectPatch].z - patches[selectPatch].h);
 		
@@ -735,8 +838,7 @@ void VSlamFilter::update(float v_x, float w_z) {
 			if (patches[i].patchIsInLi()) actual_num_zli++;
 			searched_features++;
 
-    	}
-    	
+    		}
     	if (actual_num_zli > num_zli) {
     		num_zli = actual_num_zli;
     		nhyp = log(1-p)/(log(num_zli/(matchedFeatures+0.0f)));
@@ -745,8 +847,6 @@ void VSlamFilter::update(float v_x, float w_z) {
     		}
     	}
 	}
-	
-
 	VectorXf z_li;
     MatrixXf H_li;
     VectorXf h_li;
@@ -764,17 +864,55 @@ void VSlamFilter::update(float v_x, float w_z) {
 
 	MatrixXf Sigma_tmp = Sigma;
 	VectorXf mu_tmp = mu;
-
     if (z_li.rows() > 0) {
     	int p = H_li.rows();
-    	St = H_li*Sigma_tmp*H_li.transpose() + sigma_pixel_2*MatrixXf::Identity(p,p);
-    	//Kt = Sigma*H_li.transpose()*St.inverse();
-    	//MatrixXf Stinv = MatrixXf::Identity(p,p);
-    	//St.llt().solveInPlace(Stinv);
-    	Kt = Sigma_tmp*H_li.transpose()*St.inverse();//
-
-    	//	MatrixXf Stinv = St.lu().solve(Matrix<float,Dynamic,Dynamic>::Identity(p,p));
-    	//	Kt = Sigma*H_li.transpose()*Stinv;
+	MatrixXf HSigmaMultiplication(H_li.rows(), Sigma_tmp.cols());
+	for(int ii=0; ii<HSigmaMultiplication.rows(); ii++)
+	{
+		for(int j=0; j<HSigmaMultiplication.cols(); j++)
+		{
+			float sum=0;
+			for(int k=0; k<H_li.cols(); k++)
+				sum+=H_li(ii, k)*Sigma_tmp(k, j);
+			HSigmaMultiplication(ii, j)=sum;
+		}
+	}
+	MatrixXf HTransposed = H_li.transpose();
+	St.resize(HSigmaMultiplication.rows(), HTransposed.cols());
+        for(int ii=0; ii<St.rows(); ii++)
+        {
+		for(int j=0; j<St.cols(); j++)
+		{
+               		float sum=0;
+               		for(int k=0; k<HSigmaMultiplication.cols(); k++)
+               			sum+=HSigmaMultiplication(ii, k)*HTransposed(k, j);
+               		St(ii, j)=sum;
+        	}
+        }
+	MatrixXf SigmaHMultiplication(Sigma_tmp.rows(), H_li.cols());
+	for(int ii=0; ii<SigmaHMultiplication.rows(); ii++)
+	{
+		for(int j=0; j<SigmaHMultiplication.cols(); j++)
+		{
+			float sum=0;
+			for(int k=0; k<Sigma_tmp.cols(); k++)
+				sum+=Sigma_tmp(ii, k)*H_li(k, j);
+			SigmaHMultiplication(ii, j)=sum;
+		}
+	}
+	MatrixXf StInversed(St.rows(), St.cols());
+	StInversed=matrixInvert(St);
+	Kt.resize(SigmaHMultiplication.rows(), StInversed.cols());
+        for(int ii=0; ii<Kt.rows(); ii++)
+        {
+		for(int j=0; j<Kt.cols(); j++)
+		{
+               		float sum=0;
+               		for(int k=0; k<SigmaHMultiplication.cols(); k++)
+               			sum+=SigmaHMultiplication(ii, k)*StInversed(k, j);
+               		Kt(ii, j)=sum;
+        	}
+        }
 
     	mu_tmp = mu + Kt*(z_li - h_li);
     	Sigma_tmp = ((MatrixXf::Identity(Sigma_tmp.rows(),Sigma_tmp.rows()) - Kt*H_li)*Sigma_tmp);
@@ -782,64 +920,78 @@ void VSlamFilter::update(float v_x, float w_z) {
     } else {
         ROS_ERROR("No Matching li");
     }
-
-    
     //////////////////////////////////////////////////////////
 	th = 1;
-    if (1) {
-		Vector3f r = mu.segment<3>(0);
-		Vector4f q = mu.segment<4>(3);
-		Vector4f qc = quatComplement(q);
-		Matrix3f RotCW = quat2rot(qc);
-		Matrix2f S_hi;
-		Vector2f hi_hi;
+	Vector3f r = mu.segment<3>(0);
+	Vector4f q = mu.segment<4>(3);
+	Vector4f qc = quatComplement(q);
+	Matrix3f RotCW = quat2rot(qc);
+	Matrix2f S_hi;
+	Vector2f hi_hi;
+
+	int counter = 0;
+	for (int i = 0; i < patches.size(); i++) {
+		if (!patches[i].patchIsInLi() && patches[i].patchIsInInnovation()) {
+			int pos = patches[i].position_in_state;
+			if (!patches[i].isXYZ()) {
+				MatrixXf Hi_hi = MatrixXf::Zero(2, mu.rows());
+				VectorXf f = mu.segment<6>(pos);
+				MatrixXf J_hp_f;
+				Vector3f d = inverse2XYZ(f, r, J_hp_f);
+				MatrixXf J_hf_hi;
+				patches[i].h = cam.projectAndDistort(RotCW*d, J_hf_hi);
+
+		            	MatrixXf d_h_q = dRq_times_d_dq(qc,d)*d_qbar_q();
+		            	Hi_hi.middleCols<3>(0) = -f(5)*J_hf_hi*RotCW;
+		           	Hi_hi.middleCols<4>(3) = J_hf_hi*d_h_q;
+		            	Hi_hi.middleCols<6>(pos) = J_hf_hi*RotCW*J_hp_f;
+				patches[i].H = Hi_hi;
 
 
+			} else {
+				MatrixXf Hi_hi = MatrixXf::Zero(2, mu.rows());
+		            	Vector3f y = mu.segment<3>(pos);
+		            	Vector3f d = y-r;
+		            	Vector3f hC = RotCW*d;
+		            	MatrixXf J_hf_hC;
+		            	patches[i].h = cam.projectAndDistort(hC, J_hf_hC);
 
-		int counter = 0;
-		for (int i = 0; i < patches.size(); i++) {
-			if (!patches[i].patchIsInLi() && patches[i].patchIsInInnovation()) {
-				int pos = patches[i].position_in_state;
-				if (!patches[i].isXYZ()) {
-					MatrixXf Hi_hi = MatrixXf::Zero(2, mu.rows());
-					VectorXf f = mu.segment<6>(pos);
-					MatrixXf J_hp_f;
-					Vector3f d = inverse2XYZ(f, r, J_hp_f);
-					MatrixXf J_hf_hi;
-					patches[i].h = cam.projectAndDistort(RotCW*d, J_hf_hi);
+		            	MatrixXf d_h_q = dRq_times_d_dq(qc,d)*d_qbar_q();
 
-		            MatrixXf d_h_q = dRq_times_d_dq(qc,d)*d_qbar_q();
-		            Hi_hi.middleCols<3>(0) = -f(5)*J_hf_hi*RotCW;
-		            Hi_hi.middleCols<4>(3) = J_hf_hi*d_h_q;
-		            Hi_hi.middleCols<6>(pos) = J_hf_hi*RotCW*J_hp_f;
-					patches[i].H = Hi_hi;
+		            	Hi_hi.middleCols<3>(0) = -J_hf_hC*RotCW;
+		            	Hi_hi.middleCols<4>(3) = J_hf_hC*d_h_q;
+		            	Hi_hi.middleCols<3>(pos) = J_hf_hC*RotCW;
+				patches[i].H = Hi_hi;
 
-
-				} else {
-					MatrixXf Hi_hi = MatrixXf::Zero(2, mu.rows());
-		            Vector3f y = mu.segment<3>(pos);
-		            Vector3f d = y-r;
-		            Vector3f hC = RotCW*d;
-		            MatrixXf J_hf_hC;
-		            patches[i].h = cam.projectAndDistort(hC, J_hf_hC);
-
-		            MatrixXf d_h_q = dRq_times_d_dq(qc,d)*d_qbar_q();
-
-		            Hi_hi.middleCols<3>(0) = -J_hf_hC*RotCW;
-		            Hi_hi.middleCols<4>(3) = J_hf_hC*d_h_q;
-		            Hi_hi.middleCols<3>(pos) = J_hf_hC*RotCW;
-					patches[i].H = Hi_hi;
-
-				}
-
-				S_hi = patches[i].H*Sigma_tmp*patches[i].H.transpose();
-				patches[i].setIsInHi((patches[i].h - patches[i].z).transpose()*S_hi.inverse()*(patches[i].h - patches[i].z) <= th);
-				counter++;
 			}
+			MatrixXf H = patches[i].H;
+			MatrixXf HSigmaMultiplication(H.rows(), Sigma_tmp.cols());
+			for(int ii=0; ii<HSigmaMultiplication.rows(); ii++)
+			{
+				for(int j=0; j<HSigmaMultiplication.cols(); j++)
+				{
+					float sum=0;
+					for(int k=0; k<H.cols(); k++)
+						sum+=H(ii, k)*Sigma_tmp(k, j);
+					HSigmaMultiplication(ii, j)=sum;
+				}
+			}
+			MatrixXf HTransposed = H.transpose();
+			S_hi.resize(HSigmaMultiplication.rows(), HTransposed.cols());
+        		for(int ii=0; ii<S_hi.rows(); ii++)
+        		{
+	    			for(int j=0; j<S_hi.cols(); j++)
+	    			{
+                			float sum=0;
+                			for(int k=0; k<HSigmaMultiplication.cols(); k++)
+                    				sum+=HSigmaMultiplication(ii, k)*HTransposed(k, j);
+                			S_hi(ii, j)=sum;
+            			}
+        		}
+			patches[i].setIsInHi((patches[i].h - patches[i].z).transpose()*S_hi.inverse()*(patches[i].h - patches[i].z) <= th);
+			counter++;
 		}
-    }
-
-
+	}
     VectorXf z_hi;
     MatrixXf H_hi;
     VectorXf h_hi;
@@ -875,7 +1027,6 @@ void VSlamFilter::update(float v_x, float w_z) {
 
 	bool flag_correction = false;
 	Matrix3f corr_ass_sigma = 0.00001*Matrix3f::Identity();
-
 	if (config.forsePlane) {
 		Vector3f corr_ass = Vector3f::Zero();
 		MatrixXf corr_ass_H = MatrixXf::Zero(3,mu_tmp.size());
@@ -896,31 +1047,71 @@ void VSlamFilter::update(float v_x, float w_z) {
 
     if (z_hi.rows() > 0) {
     	int p = H_hi.rows();
-    	St = H_hi*Sigma_tmp*H_hi.transpose();
+	MatrixXf HSigmaMultiplication(H_hi.rows(), Sigma_tmp.cols());
+	for(int ii=0; ii<HSigmaMultiplication.rows(); ii++)
+	{
+		for(int j=0; j<HSigmaMultiplication.cols(); j++)
+		{
+			float sum=0;
+			for(int k=0; k<H_hi.cols(); k++)
+				sum+=H_hi(ii, k)*Sigma_tmp(k, j);
+			HSigmaMultiplication(ii, j)=sum;
+		}
+	}
+	MatrixXf HTransposed = H_hi.transpose();
+	St.resize(HSigmaMultiplication.rows(), HTransposed.cols());
+        for(int ii=0; ii<St.rows(); ii++)
+        {
+		for(int j=0; j<St.cols(); j++)
+	    	{
+                	float sum=0;
+                	for(int k=0; k<HSigmaMultiplication.cols(); k++)
+                		sum+=HSigmaMultiplication(ii, k)*HTransposed(k, j);
+                	St(ii, j)=sum;
+            	}
+        }
 
     	MatrixXf St_error = sigma_pixel_2*MatrixXf::Identity(p,p);
-    	//if (flag_odom) St_error(p-1,p-1) = 0.2;
     	if (flag_correction) St_error.block<3,3>(p-3,p-3) = corr_ass_sigma;
 
     	St += St_error;
-
-    	Kt = Sigma_tmp*H_hi.transpose()*St.inverse();//lu().solve(Matrix<float,Dynamic,Dynamic>::Identity(p,p));
+	HTransposed = H_hi.transpose();
+	MatrixXf SigmaHMultiplication(Sigma_tmp.rows(), HTransposed.cols());
+	for(int ii=0; ii<SigmaHMultiplication.rows(); ii++)
+	{
+		for(int j=0; j<SigmaHMultiplication.cols(); j++)
+		{
+			float sum=0;
+			for(int k=0; k<Sigma_tmp.cols(); k++)
+				sum+=Sigma_tmp(ii, k)*HTransposed(k, j);
+			SigmaHMultiplication(ii, j)=sum;
+		}
+	}
+	MatrixXf StInversed = St.inverse();
+	Kt.resize(SigmaHMultiplication.rows(), StInversed.cols());
+        for(int ii=0; ii<Kt.rows(); ii++)
+        {
+		for(int j=0; j<Kt.cols(); j++)
+	    	{
+                	float sum=0;
+                	for(int k=0; k<SigmaHMultiplication.cols(); k++)
+                		sum+=SigmaHMultiplication(ii, k)*StInversed(k, j);
+                	Kt(ii, j)=sum;
+            	}
+        }
     	mu_tmp = mu_tmp + Kt*(z_hi - h_hi);
         Sigma_tmp = ((MatrixXf::Identity(Sigma_tmp.rows(),Sigma_tmp.rows()) - Kt*H_hi)*Sigma_tmp).eval();
        	normalizeQuaternion(mu_tmp,Sigma_tmp);
     }
     
-    if (1) {
     	mu = mu_tmp;
     	Sigma = Sigma_tmp;
-    }
 
 
 
     for (int i = 0; i < patches.size(); i++) {
     	patches[i].drawUpdate(drawedImg, i);
     }
-
 
 	for (int i = patches.size()-1; i >= 0; --i){
 		patches[i].update_quality_index();

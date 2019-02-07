@@ -121,6 +121,7 @@ public:
 
   void imageCb(const sensor_msgs::ImageConstPtr& msg)
   {
+std::cout<<"imageCb start\n";
     cv_bridge::CvImagePtr cv_ptr;
     try
     {
@@ -142,8 +143,9 @@ public:
     	slam.findNewFeatures();
 		frame = slam.returnImageDrawed();
 	} else {
+std::cout<<"else start\n";
 		slam.captureNewFrame(cv_ptr->image, msg->header.stamp.toSec());
-
+std::cout<<"slam.captureNewFrame\n";
 
 		slam.predict();
 std::cout<<"slam.predict\n";
