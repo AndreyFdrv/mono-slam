@@ -345,14 +345,36 @@ void VSlamFilter::predict(float v_x, float w_z) {
 
     MatrixXf Qtot = MatrixXf::Zero(n,n);
     Qtot.block<13,13>(0,0) = Q;
-    Sigma = (Ft_complete*Sigma*Ft_complete.transpose() + Qtot).eval();
+        MatrixXf FtSigmaMultiplication(Ft_complete.rows(), Sigma.cols());
+        for(int ii=0; ii<FtSigmaMultiplication.rows(); ii++)
+        {
+	    for(int j=0; j<FtSigmaMultiplication.cols(); j++)
+	    {
+                float sum=0;
+                for(int k=0; k<Ft_complete.cols(); k++)
+                    sum+=Ft_complete(ii, k)*Sigma(k, j);
+                FtSigmaMultiplication(ii, j)=sum;
+            }
+        }
+        FtTransposed = Ft_complete.transpose();
+        Sigma.resize(FtSigmaMultiplication.rows(), FtTransposed.cols());
+        for(int ii=0; ii<Sigma.rows(); ii++)
+        {
+	    for(int j=0; j<Sigma.cols(); j++)
+	    {
+                float sum=0;
+                for(int k=0; k<FtSigmaMultiplication.cols(); k++)
+                    sum+=FtSigmaMultiplication(ii, k)*FtTransposed(k, j);
+                Sigma(ii, j)=sum;
+            }
+	}
+	Sigma = (Sigma + Qtot).eval();
     mu.segment<13>(0) = fv(mu.segment<13>(0), dT);
     Vector3f r = mu.segment<3>(0);
     Vector4f q = mu.segment<4>(3);
     Vector3f v = mu.segment<3>(7);
     Vector3f w = mu.segment<3>(10);
     Vector4f h = vec2quat(w);
-
     map_scale = mu(13);
 
 
