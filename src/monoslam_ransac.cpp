@@ -143,7 +143,6 @@ public:
 		frame = slam.returnImageDrawed();
 	} else {
 		slam.captureNewFrame(cv_ptr->image, msg->header.stamp.toSec());
-
 		slam.predict();
 		slam.update();
 		poses.poses.push_back(slam.getCameraPose());

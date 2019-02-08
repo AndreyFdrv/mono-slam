@@ -928,7 +928,30 @@ void VSlamFilter::update(float v_x, float w_z) {
         	}
         }
     	mu_tmp = mu + Kt*(z_li - h_li);
-    	Sigma_tmp = ((MatrixXf::Identity(Sigma_tmp.rows(),Sigma_tmp.rows()) - Kt*H_li)*Sigma_tmp);
+	MatrixXf KtHMultiplication(Kt.rows(), H_li.cols());
+	for(int ii=0; ii<KtHMultiplication.rows(); ii++)
+	{
+		for(int j=0; j<KtHMultiplication.cols(); j++)
+		{
+			float sum=0;
+			for(int k=0; k<Kt.cols(); k++)
+				sum+=Kt(ii, k)*H_li(k, j);
+			KtHMultiplication(ii, j)=sum;
+		}
+	}
+	MatrixXf diff = MatrixXf::Identity(Sigma_tmp.rows(), Sigma_tmp.rows()) - KtHMultiplication;
+	MatrixXf DiffSigmaMultiplication(diff.rows(), Sigma_tmp.cols());
+        for(int ii=0; ii<DiffSigmaMultiplication.rows(); ii++)
+        {
+		for(int j=0; j<DiffSigmaMultiplication.cols(); j++)
+		{
+               		float sum=0;
+               		for(int k=0; k<diff.cols(); k++)
+               			sum+=diff(ii, k)*Sigma_tmp(k, j);
+               		DiffSigmaMultiplication(ii, j)=sum;
+        	}
+        }
+	Sigma_tmp = DiffSigmaMultiplication;
        	normalizeQuaternion(mu_tmp,Sigma_tmp);
     } else {
         ROS_ERROR("No Matching li");
