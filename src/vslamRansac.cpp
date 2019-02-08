@@ -142,7 +142,6 @@ VSlamFilter::VSlamFilter(char *file) : config(file) {
 
 
     mu = VectorXf::Zero(STATE_DIM); mu(3) = 1; mu(13) = 1; // initialization mu
-
     Vmax = MatrixXf::Identity(6,6);
 	Vmax(0,0) = config.sigma_vx*config.sigma_vx;
 	Vmax(1,1) = config.sigma_vy*config.sigma_vy;
@@ -219,7 +218,6 @@ int VSlamFilter::addFeature(cv::Point2f pf) {
 	VectorXf f(6);
 	f << r, theta, phi, ro;
 	mu = Concat(mu,f);
-
 
         int nOld = Sigma.rows();
         MatrixXf Js = MatrixXf::Zero(nOld+6, nOld+3);
@@ -342,7 +340,6 @@ void VSlamFilter::predict(float v_x, float w_z) {
                 Q(ii, j)=sum;
             }
        }
-
     MatrixXf Qtot = MatrixXf::Zero(n,n);
     Qtot.block<13,13>(0,0) = Q;
         MatrixXf FtSigmaMultiplication(Ft_complete.rows(), Sigma.cols());
@@ -378,7 +375,6 @@ void VSlamFilter::predict(float v_x, float w_z) {
     map_scale = mu(13);
 
 
-
     Vector4f qc = quatComplement(q); // quaternion Complement
     Matrix3f RotCW = quat2rot(qc);
 
@@ -412,7 +408,6 @@ void VSlamFilter::predict(float v_x, float w_z) {
             MatrixXf J_h_hC;
             hi_out = cam.projectAndDistort(hC, J_h_hC);
             bool flag = isInsideImage(hi_out, frame.size(), windowsSize) && hC(2) >= 0 && f(5) > 0;
-
 			patches[i].setIsInInnovation(flag);
             if (!flag) continue;
 			
@@ -451,7 +446,6 @@ void VSlamFilter::predict(float v_x, float w_z) {
             MatrixXf J_h_hC;
             hi_out = cam.projectAndDistort(hC, J_h_hC);
             bool flag = isInsideImage(hi_out, frame.size(), windowsSize) && hC(2) >= 0;
-
 			patches[i].setIsInInnovation(flag);
             if (!flag) continue;
 
@@ -855,7 +849,6 @@ void VSlamFilter::update(float v_x, float w_z) {
 	            MatrixXf J_hf_hC;
 	            hi_i = cam.projectAndDistort(hC, J_hf_hC);
 			}
-
 			patches[i].setIsInLi((patches[i].z - hi_i).norm() <= th);
 			if (patches[i].patchIsInLi()) actual_num_zli++;
 			searched_features++;
@@ -872,7 +865,6 @@ void VSlamFilter::update(float v_x, float w_z) {
 	VectorXf z_li;
     MatrixXf H_li;
     VectorXf h_li;
-
 	for (int i = 0, j = 0; i < patches.size(); i++) {
 		if (patches[i].patchIsInLi()) {
 			h_li = Concat(h_li,patches[i].h);
@@ -911,14 +903,14 @@ void VSlamFilter::update(float v_x, float w_z) {
                		St(ii, j)=sum;
         	}
         }
-	MatrixXf SigmaHMultiplication(Sigma_tmp.rows(), H_li.cols());
+	MatrixXf SigmaHMultiplication(Sigma_tmp.rows(), HTransposed.cols());
 	for(int ii=0; ii<SigmaHMultiplication.rows(); ii++)
 	{
 		for(int j=0; j<SigmaHMultiplication.cols(); j++)
 		{
 			float sum=0;
 			for(int k=0; k<Sigma_tmp.cols(); k++)
-				sum+=Sigma_tmp(ii, k)*H_li(k, j);
+				sum+=Sigma_tmp(ii, k)*HTransposed(k, j);
 			SigmaHMultiplication(ii, j)=sum;
 		}
 	}
@@ -935,7 +927,6 @@ void VSlamFilter::update(float v_x, float w_z) {
                		Kt(ii, j)=sum;
         	}
         }
-
     	mu_tmp = mu + Kt*(z_li - h_li);
     	Sigma_tmp = ((MatrixXf::Identity(Sigma_tmp.rows(),Sigma_tmp.rows()) - Kt*H_li)*Sigma_tmp);
        	normalizeQuaternion(mu_tmp,Sigma_tmp);
@@ -1125,7 +1116,6 @@ void VSlamFilter::update(float v_x, float w_z) {
         Sigma_tmp = ((MatrixXf::Identity(Sigma_tmp.rows(),Sigma_tmp.rows()) - Kt*H_hi)*Sigma_tmp).eval();
        	normalizeQuaternion(mu_tmp,Sigma_tmp);
     }
-    
     	mu = mu_tmp;
     	Sigma = Sigma_tmp;
 
@@ -1549,7 +1539,6 @@ void normalizeQuaternion(VectorXf &mu, MatrixXf &Sigma) {
 bool isInsideImage(Vector2f hi, cv::Size size, int windowsSize) {
     float i = hi(0);
     float j = hi(1);
-    
     if (i > windowsSize/2 && j > windowsSize/2 && i < size.width - windowsSize/2 && j < size.height - windowsSize/2) {
         return true;
     }

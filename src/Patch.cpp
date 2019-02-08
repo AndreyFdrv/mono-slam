@@ -250,7 +250,6 @@ bool Patch::findMatch(cv::Mat frame, MatrixXf covarianceMatrix, float sigma_size
 
 
 
-
     if (max < 0.8) {
         this->center = cv::Point2f(-1,-1);
         this->founded = false;

@@ -71,7 +71,6 @@ Vector2f CamModel::projectAndDistort(Vector3f h, MatrixXf &J) {
     
     // Compute point retina undistor
     float inv_z = 1/z;
-
     float x1 = x/z;
     float y1 = y/z;
     
@@ -85,7 +84,6 @@ Vector2f CamModel::projectAndDistort(Vector3f h, MatrixXf &J) {
     float r_2 = x1*x1+y1*y1;
     float l = 1 + k1*r_2 + k2*r_2*r_2 + k3*r_2*r_2*r_2;
 
-    
     float x2 = x1*l + 2*p1*x1*y1 + p2*(r_2 + 2*x1*x1);
     float y2 = y1*l + 2*p2*x1*y1 + p1*(r_2 + 2*y1*y1);
 

@@ -121,7 +121,6 @@ public:
 
   void imageCb(const sensor_msgs::ImageConstPtr& msg)
   {
-std::cout<<"imageCb start\n";
     cv_bridge::CvImagePtr cv_ptr;
     try
     {
@@ -143,30 +142,20 @@ std::cout<<"imageCb start\n";
     	slam.findNewFeatures();
 		frame = slam.returnImageDrawed();
 	} else {
-std::cout<<"else start\n";
 		slam.captureNewFrame(cv_ptr->image, msg->header.stamp.toSec());
-std::cout<<"slam.captureNewFrame\n";
 
 		slam.predict();
-std::cout<<"slam.predict\n";
 		slam.update();
-std::cout<<"slam.update\n";
 		poses.poses.push_back(slam.getCameraPose());
 		camera_poses_pub.publish(slam.getCameraPath());
-std::cout<<"camera_poses_pub.publish(slam.getCameraPath())\n";
 		geometry_msgs::Pose camPose = slam.getCameraPose();
-std::cout<<"slam.getCameraPose()\n";
 		camera_pose_pub.publish(camPose);
-std::cout<<"camera_pose_pub.publish(camPose)\n";
 		features_pub.publish(slam.getFeatures());
-		camera_pub.publish(slam.ActualCameraRepr());
-std::cout<<"camera_pose_pub.publish(slam.ActualCameraRepr())\n";		
+		camera_pub.publish(slam.ActualCameraRepr());		
 
 		odometry_pub.publish(slam.getVisualOdometry(msg->header.stamp));
 		frame = slam.returnImageDrawed();
-std::cout<<"slam.returnImageDrawed()\n";
-	}
-std::cout<<"if-else end\n";	
+	}	
 		
 
 	cv_ptr->image = frame;
@@ -174,7 +163,6 @@ std::cout<<"if-else end\n";
 
     char name[100];
     static int num = 0;
-std::cout<<"imageCb end\n";
   }
 };
 
