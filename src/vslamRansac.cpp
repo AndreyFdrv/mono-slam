@@ -17,8 +17,6 @@
 #include <eigen3/Eigen/Cholesky>
 
 #define STATE_DIM 14
-#define EIGEN_DONT_VECTORIZE
-#define EIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT
 
 /**
  * Prototipes of the used funcitons
@@ -1060,7 +1058,6 @@ void VSlamFilter::update(float v_x, float w_z) {
 #endif
 
 
-
 	bool flag_correction = false;
 	Matrix3f corr_ass_sigma = 0.00001*Matrix3f::Identity();
 	if (config.forsePlane) {
@@ -1077,8 +1074,6 @@ void VSlamFilter::update(float v_x, float w_z) {
 		H_hi = vConcat(H_hi, corr_ass_H);
 		flag_correction = true;
 	}
-
-
 
 
     if (z_hi.rows() > 0) {
@@ -1108,8 +1103,9 @@ void VSlamFilter::update(float v_x, float w_z) {
         }
 
     	MatrixXf St_error = sigma_pixel_2*MatrixXf::Identity(p,p);
-    	if (flag_correction) St_error.block<3,3>(p-3,p-3) = corr_ass_sigma;
-
+    	if (flag_correction) 
+		St_error.block<3,3>(p-3,p-3) = corr_ass_sigma;
+std::cout<<"St_error\n";
     	St += St_error;
 	HTransposed = H_hi.transpose();
 	MatrixXf SigmaHMultiplication(Sigma_tmp.rows(), HTransposed.cols());
@@ -1136,7 +1132,30 @@ void VSlamFilter::update(float v_x, float w_z) {
             	}
         }
     	mu_tmp = mu_tmp + Kt*(z_hi - h_hi);
-        Sigma_tmp = ((MatrixXf::Identity(Sigma_tmp.rows(),Sigma_tmp.rows()) - Kt*H_hi)*Sigma_tmp).eval();
+	MatrixXf KtHMultiplication(Kt.rows(), H_hi.cols());
+	for(int ii=0; ii<KtHMultiplication.rows(); ii++)
+	{
+		for(int j=0; j<KtHMultiplication.cols(); j++)
+		{
+			float sum=0;
+			for(int k=0; k<Kt.cols(); k++)
+				sum+=Kt(ii, k)*H_hi(k, j);
+			KtHMultiplication(ii, j)=sum;
+		}
+	}
+	MatrixXf diff = MatrixXf::Identity(Sigma_tmp.rows(), Sigma_tmp.rows()) - KtHMultiplication;
+	MatrixXf DiffSigmaMultiplication(diff.rows(), Sigma_tmp.cols());
+        for(int ii=0; ii<DiffSigmaMultiplication.rows(); ii++)
+        {
+		for(int j=0; j<DiffSigmaMultiplication.cols(); j++)
+		{
+               		float sum=0;
+               		for(int k=0; k<diff.cols(); k++)
+               			sum+=diff(ii, k)*Sigma_tmp(k, j);
+               		DiffSigmaMultiplication(ii, j)=sum;
+        	}
+        }
+	Sigma_tmp = DiffSigmaMultiplication;
        	normalizeQuaternion(mu_tmp,Sigma_tmp);
     }
     	mu = mu_tmp;
@@ -1150,17 +1169,20 @@ void VSlamFilter::update(float v_x, float w_z) {
 
 	for (int i = patches.size()-1; i >= 0; --i){
 		patches[i].update_quality_index();
-		if (patches[i].mustBeRemove()) this->removeFeature(i);
+		if (patches[i].mustBeRemove()) 
+			this->removeFeature(i);
 	}
-
-    int nVisibleFeature = 0;
-    for (int i = 0; i < patches.size(); i++) if (patches[i].patchIsInInnovation()) nVisibleFeature++;
-
+    	int nVisibleFeature = 0;
+    	for (int i = 0; i < patches.size(); i++) 
+	{
+		if (patches[i].patchIsInInnovation()) 
+			nVisibleFeature++;
+	}
     if (nVisibleFeature < config.min_features) {
-    	if (patches.size() > config.max_features) this->removeFeature(0);
+    	if (patches.size() > config.max_features) 
+		this->removeFeature(0);
     	this->findNewFeatures(5);
     }
-
 	findFeaturesConvertible2XYZ();
 }
 
