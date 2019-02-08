@@ -613,9 +613,29 @@ void VSlamFilter::convert2XYZ(int index) {
         if (index != patches.size() - 1) {
         	J.bottomRightCorner(n-pos-6,n-pos-6) = MatrixXf::Identity(n-pos-6,n-pos-6);
         }
-
-        Sigma = J*Sigma*J.transpose();
-
+	MatrixXf JSigmaMultiplication(J.rows(), Sigma.cols());
+	for(int ii=0; ii<JSigmaMultiplication.rows(); ii++)
+	{
+		for(int j=0; j<JSigmaMultiplication.cols(); j++)
+		{
+			float sum=0;
+			for(int k=0; k<J.cols(); k++)
+				sum+=J(ii, k)*Sigma(k, j);
+			JSigmaMultiplication(ii, j)=sum;
+		}
+	}
+	MatrixXf JTransposed = J.transpose();
+	Sigma.resize(JSigmaMultiplication.rows(), JTransposed.cols());
+        for(int ii=0; ii<Sigma.rows(); ii++)
+        {
+		for(int j=0; j<Sigma.cols(); j++)
+		{
+               		float sum=0;
+               		for(int k=0; k<JSigmaMultiplication.cols(); k++)
+              			sum+=JSigmaMultiplication(ii, k)*JTransposed(k, j);
+               		Sigma(ii, j)=sum;
+        	}
+        }
         patches[index].convertInXYZ();
 
         for(int i = index + 1; i < patches.size(); i++) {
@@ -627,7 +647,8 @@ void VSlamFilter::convert2XYZ(int index) {
 
 void VSlamFilter::findFeaturesConvertible2XYZ() {
 	for (int i = 0; i < patches.size(); i++) {
-		if (!patches[i].isXYZ()) convert2XYZ(i);
+		if (!patches[i].isXYZ()) 
+			convert2XYZ(i);
 	}
 
 }
@@ -1178,11 +1199,11 @@ std::cout<<"St_error\n";
 		if (patches[i].patchIsInInnovation()) 
 			nVisibleFeature++;
 	}
-    if (nVisibleFeature < config.min_features) {
-    	if (patches.size() > config.max_features) 
-		this->removeFeature(0);
-    	this->findNewFeatures(5);
-    }
+    	if (nVisibleFeature < config.min_features) {
+    		if (patches.size() > config.max_features) 
+			this->removeFeature(0);
+    		this->findNewFeatures(5);
+    	}
 	findFeaturesConvertible2XYZ();
 }
 
