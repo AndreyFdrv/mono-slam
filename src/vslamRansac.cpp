@@ -1244,18 +1244,6 @@ Matrix3f quat2rot(Vector4f quat) {
 	rot <<	 qr*qr + qi*qi - qj*qj - qk*qk, 		-2*qr*qk+2*qi*qj,					 2*qr*qj+2*qi*qk,
 		 2*qr*qk+2*qi*qj,				 qr*qr - qi*qi + qj*qj - qk*qk,				-2*qr*qi+2*qj*qk,
 		-2*qr*qj+2*qi*qk,				 2*qr*qi+2*qj*qk,					 qr*qr - qi*qi - qj*qj + qk*qk;
-    /*
-	rot <<	 qr*qr + qi*qi - qj*qj - qk*qk, 		-2*qr*qk+2*qi*qj,					 2*qr*qj+2*qi*qk,
-		 2*qr*qk+2*qi*qj,				 qr*qr - qi*qi + qj*qj - qk*qk,				-2*qr*qi+2*qj*qk,
-		-2*qr*qj+2*qi*qk,				 2*qr*qi+2*qj*qk,					 qr*qr - qi*qi - qj*qj + qk*qk;
-
-
-	const float norm = quat.segment<3>(1).norm();
-	Vector3f v = quat.segment<3>(1);
-	Matrix3f skew;
-	skew << 0, -z, y, z, 0, -x, -y, x, 0;
-	rot = Matrix3f::Identity()*(1 - 2*norm*norm) + 2*(v*v.transpose() + w*skew);
-*/
     return rot;
 }
 
@@ -1339,13 +1327,8 @@ Vector3f inverse2XYZ(VectorXf f, Vector3f r, MatrixXf &J_hp_f, Matrix3f R) {
     J_hp_f(2,4) = -cos(theta)*sin(phi);
     
     J_hp_f.col(5) = f.segment<3>(0)-r;
-    
-    
-    //J_hp_f= R*J_hp_f;
-
-    
+  
     MatrixXf ret;
-    //ret =  R*(ro*(f.segment<3>(0)-r) + m);
     ret =  (ro*(f.segment<3>(0)-r) + m);
     return ret;
 }
@@ -1552,9 +1535,30 @@ void normalizeQuaternion(VectorXf &mu, MatrixXf &Sigma) {
 
     MatrixXf Qc = MatrixXf::Identity(Sigma.rows(), Sigma.cols());
     Qc.block<4,4>(3,3) = Q;
-
-	Sigma = (Qc*Sigma*Qc.transpose()).eval();
-
+    MatrixXf QcSigmaMultiplication(Qc.rows(), Sigma.cols());
+    for(int ii=0; ii<QcSigmaMultiplication.rows(); ii++)
+    {
+        for(int j=0; j<QcSigmaMultiplication.cols(); j++)
+        {
+            float sum=0;
+            for(int k=0; k<Qc.cols(); k++)
+                sum+=Qc(ii, k)*Sigma(k, j);
+            QcSigmaMultiplication(ii, j)=sum;
+        }
+    }
+    MatrixXf QcTransposed = Qc.transpose();
+    Sigma.resize(QcSigmaMultiplication.rows(), QcTransposed.cols());
+    for(int ii=0; ii<Sigma.rows(); ii++)
+    {
+        for(int j=0; j<Sigma.cols(); j++)
+        {
+            float sum=0;
+            for(int k=0; k<QcSigmaMultiplication.cols(); k++)
+                sum+=QcSigmaMultiplication(ii, k)*QcTransposed(k, j);
+            Sigma(ii, j)=sum;
+        }
+    }
+    Sigma = Sigma.eval();
 }
 
 
