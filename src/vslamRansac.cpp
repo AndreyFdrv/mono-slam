@@ -959,7 +959,6 @@ void VSlamFilter::update(float v_x, float w_z) {
 		}
 	}
 	mu_tmp += mu;
-    	//mu_tmp = mu + Kt*(z_li - h_li);
 	MatrixXf KtHMultiplication(Kt.rows(), H_li.cols());
 	for(int ii=0; ii<KtHMultiplication.rows(); ii++)
 	{
@@ -1106,7 +1105,6 @@ void VSlamFilter::update(float v_x, float w_z) {
 		H_hi = vConcat(H_hi, corr_ass_H);
 		flag_correction = true;
 	}
-
     if (z_hi.rows() > 0) {
     	int p = H_hi.rows();
 	MatrixXf HSigmaMultiplication(H_hi.rows(), Sigma_tmp.cols());
@@ -1160,7 +1158,19 @@ void VSlamFilter::update(float v_x, float w_z) {
                 	Kt(ii, j)=sum;
             	}
         }
-    	mu_tmp = mu_tmp + Kt*(z_hi - h_hi);
+	MatrixXf z_h_diff = z_hi - h_hi;
+	MatrixXf KtDiffMultiplication(Kt.rows(), z_h_diff.cols());
+	for(int ii=0; ii<KtDiffMultiplication.rows(); ii++)
+	{
+		for(int j=0; j<KtDiffMultiplication.cols(); j++)
+		{
+			float sum=0;
+			for(int k=0; k<Kt.cols(); k++)
+				sum+=Kt(ii, k)*z_h_diff(k, j);
+			KtDiffMultiplication(ii, j)=sum;
+		}
+	}
+	mu_tmp += KtDiffMultiplication;
 	MatrixXf KtHMultiplication(Kt.rows(), H_hi.cols());
 	for(int ii=0; ii<KtHMultiplication.rows(); ii++)
 	{
